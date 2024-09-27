@@ -1,0 +1,2128 @@
+---
+title: "ETM Statistical Analyses"
+author: "Faruk Üstünel"
+date: "`r Sys.Date()`"
+output:
+  github_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#View(paletteer::palettes_d_names)
+```
+
+```{r session-info, echo=TRUE, results='markup'}
+sessionInfo()
+
+#R version 4.4.1 (2024-06-14)
+#Platform: aarch64-apple-darwin23.4.0
+#Running under: macOS 15.0
+
+#Matrix products: default
+#BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+#LAPACK: /opt/homebrew/Cellar/r/4.4.1/lib/R/lib/libRlapack.dylib;  LAPACK version 3.12.0
+
+#locale:
+#[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+#time zone: Europe/Istanbul
+#tzcode source: internal
+
+#attached base packages:
+#[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+#other attached packages:
+# [1] flextable_0.9.6    gtsummary_1.7.2    epitools_0.5-10.1  fBasics_4032.96    rstatix_0.7.2     
+# [6] ggsignif_0.6.4     dunn.test_1.3.6    scales_1.3.0       ggsci_3.2.0        PMCMRplus_1.9.10  
+#[11] ggstatsplot_0.12.4 car_3.1-2          carData_3.0-5      ggpubr_0.6.0       ggplot2_3.5.1     
+#[16] nortest_1.0-4      stringr_1.5.1      dplyr_1.1.4        readxl_1.4.3      
+
+#loaded via a namespace (and not attached):
+#  [1] rstudioapi_0.16.0       jsonlite_1.8.8          datawizard_0.12.1       correlation_0.8.5      
+#  [5] magrittr_2.0.3          SuppDists_1.1-9.7       farver_2.1.2            rmarkdown_2.27         
+#  [9] ragg_1.3.2              vctrs_0.6.5             memoise_2.0.1           paletteer_1.6.0        
+# [13] askpass_1.2.0           effectsize_0.8.9        forcats_1.0.0           htmltools_0.5.8.1      
+# [17] curl_5.2.1              broom_1.0.6             cellranger_1.1.0        BWStest_0.2.3          
+# [21] sass_0.4.9              cachem_1.1.0            gt_0.11.0               uuid_1.2-0             
+# [25] commonmark_1.9.1        mime_0.12               lifecycle_1.0.4         pkgconfig_2.0.3        
+# [29] Matrix_1.7-0            R6_2.5.1                fastmap_1.2.0           shiny_1.8.1.1          
+# [33] BayesFactor_0.9.12-4.7  digest_0.6.36           colorspace_2.1-0        spatial_7.3-17         
+# [37] rematch2_2.1.2          patchwork_1.2.0         textshaping_0.4.0       labeling_0.4.3         
+# [41] fansi_1.0.6             abind_1.4-5             compiler_4.4.1          fontquiver_0.2.1       
+# [45] withr_3.0.0             backports_1.5.0         MASS_7.3-61             openssl_2.2.0          
+# [49] gfonts_0.2.0            tools_4.4.1             zip_2.3.1               httpuv_1.6.15          
+# [53] statsExpressions_1.5.5  glue_1.7.0              promises_1.3.0          grid_4.4.1             
+# [57] generics_0.1.3          gtable_0.3.5            tidyr_1.3.1             data.table_1.15.4      
+# [61] xml2_1.3.6              utf8_1.2.4              markdown_1.13           ggrepel_0.9.5          
+# [65] pillar_1.9.0            later_1.3.2             lattice_0.22-6          gmp_0.7-4              
+# [69] tidyselect_1.2.1        fontLiberation_0.1.0    pbapply_1.7-2           knitr_1.48             
+# [73] fontBitstreamVera_0.1.1 crul_1.4.2              xfun_0.45               timeDate_4032.109      
+# [77] stringi_1.8.4           boot_1.3-30             evaluate_0.24.0         kSamples_1.2-10        
+# [81] httpcode_0.3.0          officer_0.6.6           timeSeries_4032.109     gdtools_0.3.7          
+# [85] tibble_3.2.1            multcompView_0.1-10     cli_3.6.3               xtable_1.8-4           
+# [89] parameters_0.22.0       systemfonts_1.1.0       munsell_0.5.1           Rcpp_1.0.12            
+# [93] zeallot_0.1.0           coda_0.19-4.1           parallel_4.4.1          MatrixModels_0.5-3     
+# [97] ggeasy_0.1.4            bayestestR_0.13.2       Rmpfr_0.9-5             broom.helpers_1.15.0   
+#[101] mvtnorm_1.2-5           insight_0.20.2          purrr_1.0.2             crayon_1.5.3           
+#[105] rlang_1.1.4             cowplot_1.1.3  
+```
+
+```{r}
+library(readxl)
+ETM <- read_excel("~/projects/ETM/Table S1.xlsx", 
+       col_types = c("skip", "text", "skip", 
+         "numeric", "text", "text", 
+         "text", "text", "text", "text", "text", 
+         "text", "skip", "skip"))
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+
+df <- ETM %>% 
+      mutate_all(~ifelse(. %in% c("unknown","-"), NA, .)) 
+
+new_colnames <- c("Family_ID","Age","Sex","ET_status","PD_status",
+                  "Clinical_Assesment","ET_severity","Age_of_ET_Onset","Onset","Status")
+
+colnames(df) <- new_colnames
+
+df <- df %>% 
+      mutate(Sex = ifelse(str_detect(Sex, "^[:upper:]+$"), Sex,str_to_title(Sex)))
+
+df <- df %>% 
+      mutate(ET_status = ifelse(str_detect(ET_status, "^[:upper:]+$"), ET_status,str_to_title(ET_status)))
+
+df <- df %>% 
+      mutate(PD_status = ifelse(str_detect(PD_status, "^[:upper:]+$"), PD_status,str_to_title(PD_status)))
+
+df <- df %>% 
+      mutate(Clinical_Assesment = ifelse(str_detect(Clinical_Assesment, "^[:upper:]+$"), Clinical_Assesment,str_to_title(Clinical_Assesment)))
+
+df <- df %>% 
+      mutate(ET_severity = ifelse(str_detect(ET_severity, "^[:upper:]+$"), ET_severity,str_to_title(ET_severity)))
+
+df <- df %>% 
+      mutate(Onset = ifelse(str_detect(Onset, "^[:upper:]+$"), Onset,str_to_title(Onset)))
+
+df <- df %>% 
+      mutate(Status = ifelse(str_detect(Status, "^[:upper:]+$"), Status,str_to_title(Status)))
+
+```
+
+```{r}
+unique(df$Family_ID)
+```
+
+```{r}
+Median <- median(df$Age)
+q1 <- quantile(df$Age, 0.25)
+q3 <- quantile(df$Age, 0.75)
+iqr <- IQR(df$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Q1:", q1, "\n")
+cat("Q3:", q3, "\n")
+cat("IQR:", iqr, "\n")
+```
+
+```{r}
+library(dplyr)
+et_deceased <- df %>% filter(ET_status=="Yes" & Status=="Deceased")
+
+Median <- median(et_deceased$Age)
+q1 <- quantile(et_deceased$Age, 0.25)
+q3 <- quantile(et_deceased$Age, 0.75)
+iqr <- IQR(et_deceased$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Q1:", q1, "\n")
+cat("Q3:", q3, "\n")
+cat("IQR:", iqr, "\n")
+```
+
+
+```{r}
+et_alive <- df %>% filter(ET_status=="Yes" & Status=="Alive")
+
+Median <- median(et_alive$Age)
+q1 <- quantile(et_alive$Age, 0.25)
+q3 <- quantile(et_alive$Age, 0.75)
+iqr <- IQR(et_alive$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Q1:", q1, "\n")
+cat("Q3:", q3, "\n")
+cat("IQR:", iqr, "\n")
+```
+
+
+```{r}
+non_et_deceased <- df %>% filter(ET_status=="No" & Status=="Deceased")
+
+Median <- median(non_et_deceased$Age)
+q1 <- quantile(non_et_deceased$Age, 0.25)
+q3 <- quantile(non_et_deceased$Age, 0.75)
+iqr <- IQR(non_et_deceased$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Q1:", q1, "\n")
+cat("Q3:", q3, "\n")
+cat("IQR:", iqr, "\n")
+```
+
+
+```{r}
+non_et_alive <- df %>% filter(ET_status=="No" & Status=="Alive")
+
+Median <- median(non_et_alive$Age)
+q1 <- quantile(non_et_alive$Age, 0.25)
+q3 <- quantile(non_et_alive$Age, 0.75)
+iqr <- IQR(non_et_alive$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Q1:", q1, "\n")
+cat("Q3:", q3, "\n")
+cat("IQR:", iqr, "\n")
+```
+
+```{r}
+deceased_median <- df %>% filter(Status=="Deceased")
+deceased_median_male <- df %>% filter(Status=="Deceased" & Sex=="Male")
+deceased_median_female <- df %>% filter(Status=="Deceased" & Sex=="Female")
+
+Median <- median(deceased_median$Age)
+Median_male <- median(deceased_median_male$Age)
+Median_female <- median(deceased_median_female$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Male", Median_male, "\n")
+cat("Female", Median_female, "\n")
+
+```
+
+
+```{r}
+et_median <- df %>% filter(ET_status=="Yes")
+et_median_male <- df %>% filter(ET_status=="Yes" & Sex=="Male")
+et_median_female <- df %>% filter(ET_status=="Yes" & Sex=="Female")
+
+Median <- median(et_median$Age)
+Median_male <- median(et_median_male$Age)
+Median_female <- median(et_median_female$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Male", Median_male, "\n")
+cat("Female", Median_female, "\n")
+```
+
+
+```{r}
+non_et_median <- df %>% filter(ET_status=="No")
+non_et_median_male <- df %>% filter(ET_status=="No" & Sex=="Male")
+non_et_median_female <- df %>% filter(ET_status=="No" & Sex=="Female")
+
+Median <- median(non_et_median$Age)
+Median_male <- median(non_et_median_male$Age)
+Median_female <- median(non_et_median_female$Age)
+
+# Display the results
+cat("Median", Median, "\n")
+cat("Male", Median_male, "\n")
+cat("Female", Median_female, "\n")
+```
+
+```{r}
+cat(min(df$Age),"\n")
+cat(max(df$Age))
+```
+
+
+```{r}
+table(df$Sex)
+```
+
+
+```{r}
+table(df$ET_status)
+```
+
+
+```{r}
+table(df$ET_severity)
+```
+
+
+```{r}
+table(df$Onset)
+```
+
+
+```{r}
+table(df$Status)
+```
+
+```{r}
+et_positive <- df %>% filter(ET_status=="Yes")
+table(et_positive$PD_status)
+```
+
+```{r}
+et_negative <- df %>% filter(ET_status=="No")
+table(et_negative$PD_status)
+```
+
+```{r}
+table(et_positive$Clinical_Assesment)
+```
+
+
+```{r}
+# Shapiro-Wilk test for normality.
+shapiro.test(df$Age)
+```
+
+
+```{r}
+p_value <- 1.074e-14
+formatted_p_value_shapiro <- format(p_value, scientific = FALSE)
+formatted_p_value_shapiro
+```
+
+
+```{r}
+# Kolmogorov-Smirnov test for normality
+ks.test(df$Age,"pnorm")
+```
+
+
+```{r}
+p_value <- 2.2e-16
+formatted_p_value_ks <- format(p_value, scientific = FALSE)
+formatted_p_value_ks
+```
+
+
+```{r}
+# Anderson-Darling normality test
+library(nortest)
+ad.test(df$Age)
+```
+
+
+```{r}
+library(ggpubr)
+
+ggqqplot(df, x="Age",
+         ggtheme = theme_pubclean(),
+         color = "blue",
+         xlab = "Theoretical Quantiles",
+         ylab = "Sample Quantiles",
+         title = "Q-Q Plot")+
+  coord_cartesian(ylim = c(0, 120))+
+  scale_y_continuous(breaks = seq(0, 120, by = 10))+
+  ggeasy::easy_center_title()
+
+
+```
+
+
+
+```{r}
+gghistogram(df, x = "Age",
+   add = "median", rug = TRUE,
+   fill = "#00AFBB", palette = c("#00AFBB"),
+   add_density = TRUE,
+   ggtheme = theme_pubclean(),
+   xlab = "Age (Years)",
+   ylab = "Number of Counts",
+   title = "Histogram of Ages in Cohort")+
+  ggeasy::easy_center_title()
+```
+
+
+```{r}
+library(car)
+
+# Function to interpret Levene test results
+interpret_levene <- function(levene_test, factor_name) {
+  alpha <- 0.05
+  
+  cat(factor_name, "\n")
+  print(levene_test)
+  
+  # Extract the p-value for the overall test
+  p_value <- levene_test$`Pr(>F)`[1]
+  
+  # Interpret the results
+  if (p_value < alpha) {
+    cat("Reject the null hypothesis. Variances are significantly different.\n")
+  } else {
+    cat("Fail to reject the null hypothesis. Variances are not significantly different.\n")
+  }
+  cat("\n")
+}
+
+
+# Perform the Levene test
+levene_test <- leveneTest(Age ~ET_status, data = df[df$ET_status %in% c("Yes", "No"),])
+
+# Interpret the results
+interpret_levene(levene_test, "ET status")
+
+# Perform the Levene test
+levene_test <- leveneTest(Age ~ ET_severity, data = df[df$ET_severity %in% c("Mild", "Moderate", "Severe"),])
+
+# Interpret the results
+interpret_levene(levene_test, "ET Severity")
+
+# Perform the Levene test
+levene_test <- leveneTest(Age ~ Onset, data = df[df$Onset %in% c("Early", "Intermediate", "Late"),])
+
+# Interpret the results
+interpret_levene(levene_test, "ET Onset")
+
+# Perform the Levene test
+levene_test <- leveneTest(Age ~ Sex:ET_status, data = df[df$Sex %in% c("Female", "Male") & df$ET_status %in% c("Yes", "No"),])
+
+# Interpret the results
+interpret_levene(levene_test, "Female/Male ET status")
+
+# Perform the Levene test
+levene_test <- leveneTest(Age ~ Status:ET_status, data = df[df$Status %in% c("Alive", "Deceased") & df$ET_status %in% c("Yes", "No"),])
+
+# Interpret the results
+interpret_levene(levene_test, "Alive/Deceased ET status")
+
+```
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("No", "Yes")
+
+# Subset the data frame and convert "ET_severity" to a factor
+et_status_df <- df[complete.cases(df$ET_status), c("ET_status", "Age")]
+et_status_df$ET_status <- factor(et_status_df$ET_status, levels = new_levels)
+et_status_df
+```
+
+
+```{r}
+library(ggstatsplot)
+library(PMCMRplus)
+library(ggsci)
+#library(ggprism)
+
+plt <- ggbetweenstats(
+  data = et_status_df,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt <- plt + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("All Cohort")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt
+```
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Severe", "Moderate", "Mild")
+
+# Subset the data frame and convert "ET_severity" to a factor
+severity_df <- df[complete.cases(df$ET_severity), c("ET_severity", "Age")]
+severity_df$ET_severity <- factor(severity_df$ET_severity, levels = new_levels)
+severity_df
+```
+
+
+```{r}
+et_status_df_60  <- et_status_df %>% filter(Age>59)
+et_status_df_60
+```
+
+```{r}
+plt_60 <- ggbetweenstats(
+  data = et_status_df_60,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_60 <- plt_60 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Elderly Cohort")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_60
+```
+
+
+```{r}
+library(ggsci)
+
+mypal <- pal_npg("nrc", alpha = 0.7)(9)
+mypal
+
+library("scales")
+show_col(mypal)
+```
+
+```{r}
+plt1 <- ggbetweenstats(
+  data = severity_df,
+  x = ET_severity,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "all",
+  p.adjust.methods="holm"
+)
+extract_stats(plt1)
+```
+
+
+```{r}
+plt1 <- ggbetweenstats(
+  data = severity_df,
+  x = ET_severity,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkgreen","blue4","bisque4")),
+  centrality.label.args = list(size = 4, nudge_x = 0.42, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "none"
+) + geom_pwc(
+  aes(group = ET_severity), 
+  method = "dunn_test", label = "{p.adj.signif}",
+  p.adjust.method = "holm", p.adjust.by = "panel",hide.ns = FALSE,
+  tip.length = 0.02,show.legend = FALSE)+
+  labs(x="",y = "Age") +
+  ggtitle("ET Severity")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#00A087B2","#3C5488B2","#7E6148B2"))
+
+plt1
+```
+
+```{r}
+extract_stats(plt1)
+```
+
+```{r}
+library(dunn.test)
+# Kruskal-Wallis test
+result_kruskal <- kruskal.test(Age ~ ET_severity, data = severity_df)
+
+# Dunn test
+result_dunn <- dunn.test(severity_df$Age, g = severity_df$ET_severity, method = "holm")
+
+# Print results
+print(result_kruskal)
+print(result_dunn)
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Early", "Intermediate", "Late")
+
+# Subset the data frame and convert "ET_severity" to a factor
+onset_df <- df[complete.cases(df$Onset), c("Onset", "Age")]
+onset_df$Onset <- factor(onset_df$Onset, levels = new_levels)
+onset_df
+
+
+```
+
+
+```{r}
+plt2 <- ggbetweenstats(
+  data = onset_df,
+  x = Onset,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "all",
+  p.adjust.methods="holm"
+)
+extract_stats(plt2)
+```
+
+
+```{r}
+plt2 <- ggbetweenstats(
+  data = onset_df,
+  x = Onset,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkgreen","blue4","bisque4")),
+  centrality.label.args = list(size = 4, nudge_x = 0.42, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "none"
+) + geom_pwc(
+  aes(group = Onset), 
+  method = "dunn_test", label = "{p.adj.signif}",
+  p.adjust.method = "holm", p.adjust.by = "panel",hide.ns = TRUE,
+  tip.length = 0.02,show.legend = FALSE)+
+  labs(x="",y = "Age") +
+  ggtitle("Onset")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#00A087B2","#3C5488B2","#7E6148B2"))
+
+plt2
+```
+
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Female", "Male")
+
+# Subset the data frame and convert "ET_severity" to a factor
+gender_df <- df[complete.cases(df$Sex), c("Sex", "Age","ET_status")]
+gender_df$Sex <- factor(gender_df$Sex, levels = new_levels)
+gender_df$ET_status <- factor(gender_df$ET_status, levels = c("No","Yes"))
+gender_df
+
+```
+
+
+```{r}
+female_df <- gender_df %>% filter(Sex=="Female")
+
+plt_3 <- ggbetweenstats(
+  data = female_df,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_3 <- plt_3 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Female")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_3
+```
+
+
+```{r}
+male_df <- gender_df %>% filter(Sex=="Male")
+
+plt_4 <- ggbetweenstats(
+  data = male_df,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_4 <- plt_4 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Male")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_4
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Alive", "Deceased")
+
+# Subset the data frame and convert "ET_severity" to a factor
+status_df <- df[complete.cases(df$Status), c("Status", "Age","ET_status")]
+status_df$Status <- factor(status_df$Status, levels = new_levels)
+status_df$ET_status <- factor(status_df$ET_status, levels = c("No","Yes"))
+status_df
+```
+
+
+
+```{r}
+alive_df <- status_df %>% filter(Status=="Alive")
+
+plt_5 <- ggbetweenstats(
+  data = alive_df,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_5 <- plt_5 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Alive")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_5
+```
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("No", "Yes")
+
+# Subset the data frame and convert "ET_severity" to a factor
+ca_status_df <- df[complete.cases(df$ET_status), c("ET_status", "Age","Status","Clinical_Assesment")]
+ca_status_df$ET_status <- factor(ca_status_df$ET_status, levels = new_levels)
+ca_status_df$Clinical_Assesment <- factor(ca_status_df$Clinical_Assesment, levels = new_levels)
+ca_status_df <- ca_status_df %>% filter(Status=="Alive")
+ca_status_df
+```
+
+
+```{r}
+plt_6 <- ggbetweenstats(
+  data = ca_status_df,
+  x = Clinical_Assesment,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_6 <- plt_6 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("Clinical Assesment")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_6
+```
+
+
+```{r}
+figure <- ggarrange(plt,plt_60,plt1,plt2,plt_3,plt_4,plt_5,plt_6, ncol = 2,nrow = 4, labels = c("A","B", "C","D","E","F","G","H"))
+```
+
+
+```{r}
+ggsave(filename="figure1_latest.png", plot = figure,width = 20, height = 15,dpi = 300)
+```
+
+```{r}
+ggsave(filename="figure1_latest.tiff", plot = figure,width = 20, height = 15,dpi = 300,compression = "lzw+p")
+```
+
+
+```{r}
+deceased_df <- df %>% filter(Status=="Deceased")
+```
+
+
+```{r}
+plt5 <- ggbetweenstats(
+  data = deceased_df,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt5 <- plt5 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Deceased")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt5
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Severe", "Moderate", "Mild")
+
+# Subset the data frame and convert "ET_severity" to a factor
+severity_deceased_df <- deceased_df[complete.cases(deceased_df$ET_severity), c("ET_severity", "Age")]
+severity_deceased_df$ET_severity <- factor(severity_deceased_df$ET_severity, levels = new_levels)
+severity_deceased_df
+```
+
+
+```{r}
+plt6 <- ggbetweenstats(
+  data = severity_deceased_df,
+  x = ET_severity,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "all"
+)
+extract_stats(plt6)
+```
+
+
+
+```{r}
+plt6 <- ggbetweenstats(
+  data = severity_deceased_df,
+  x = ET_severity,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "none"
+) + geom_pwc(
+  aes(group = ET_severity), 
+  method = "dunn_test", label = "{p.adj.signif}",
+  p.adjust.method = "holm", p.adjust.by = "panel",hide.ns = FALSE,
+  tip.length = 0.02,show.legend = FALSE)+
+  labs(x="",y = "Age") +
+  ggtitle("ET Severity")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#00A087B2","#3C5488B2","#7E6148B2"))
+
+plt6
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Early", "Intermediate", "Late")
+
+# Subset the data frame and convert "ET_severity" to a factor
+onset_deceased_df <- deceased_df[complete.cases(deceased_df$Onset), c("Onset", "Age")]
+onset_deceased_df$Onset <- factor(onset_deceased_df$Onset, levels = new_levels)
+onset_deceased_df
+```
+
+
+```{r}
+plt7<- ggbetweenstats(
+  data = onset_deceased_df,
+  x = Onset,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "all"
+) 
+
+extract_stats(plt7)
+```
+
+```{r}
+plt7<- ggbetweenstats(
+  data = onset_deceased_df,
+  x = Onset,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+  pairwise.display = "none"
+) + geom_pwc(
+  aes(group = Onset), 
+  method = "dunn_test", label = "{p.adj.signif}",
+  p.adjust.method = "holm", p.adjust.by = "panel",hide.ns = FALSE,
+  tip.length = 0.02,show.legend = FALSE)+
+  labs(x="",y = "Age") +
+  ggtitle("Onset")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#00A087B2","#3C5488B2","#7E6148B2"))
+
+plt7
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("Female", "Male")
+
+# Subset the data frame and convert "ET_severity" to a factor
+gender_deceased_df <- deceased_df[complete.cases(deceased_df$Sex), c("Sex", "Age")]
+gender_deceased_df$Sex <- factor(gender_deceased_df$Sex, levels = new_levels)
+gender_deceased_df
+```
+
+
+
+```{r}
+plt8 <- ggbetweenstats(
+  data = gender_deceased_df,
+  x = Sex,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkred","darkblue")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt8 <- plt8 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("Female","Male")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="Sex",y = "Age") +
+  ggtitle("Gender")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#DC0000B2","#4DBBD5B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt8
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("No", "Yes")
+
+# Subset the data frame and convert "ET_severity" to a factor
+ca_deceased_df <- deceased_df[complete.cases(deceased_df$Clinical_Assesment), c("Clinical_Assesment", "Age")]
+ca_deceased_df$Clinical_Assesment <- factor(ca_deceased_df$Clinical_Assesment, levels = new_levels)
+ca_deceased_df
+```
+
+
+```{r}
+plt9 <- ggbetweenstats(
+  data = ca_deceased_df,
+  x = Clinical_Assesment,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt9 <- plt9 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("Clinical Assesment")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt9
+```
+
+
+```{r}
+# Assuming your levels are "severe", "moderate", and "mild"
+new_levels <- c("No", "Yes")
+
+# Subset the data frame and convert "ET_severity" to a factor
+pd_deceased_df <- deceased_df[complete.cases(deceased_df$PD_status), c("PD_status", "Age")]
+pd_deceased_df$PD_status <- factor(pd_deceased_df$PD_status, levels = new_levels)
+pd_deceased_df
+```
+
+
+```{r}
+plt10 <- ggbetweenstats(
+  data = pd_deceased_df,
+  x = PD_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt10 <- plt10 + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("PD Status")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 130))+
+  scale_y_continuous(breaks = seq(40, 130, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt10
+```
+
+```{r}
+extract_stats(plt10)
+```
+
+
+```{r}
+figure2 <- ggarrange(plt5,plt6,plt7,plt8,plt9,plt10,
+                     labels = c("A","B","C","D","E","F"),ncol = 2, nrow = 3)
+#annotate_figure(figure,fig.lab = "Figure 2", fig.lab.face = "bold")
+```
+
+
+```{r}
+ggsave(filename="figure2_latest.png", plot = figure2,width = 18, height = 12,dpi = 300)
+```
+
+```{r}
+ggsave(filename="figure2_latest.tiff", plot = figure2,width = 18, height = 12,dpi = 300,compression = "lzw+p")
+```
+
+```{r}
+families_table <- df %>% group_by("Family_ID")
+families_table
+```
+
+
+
+```{r}
+df$Family_ID <- as.factor(df$Family_ID)
+```
+
+
+```{r}
+# Select Families split into different df and perform dunnet test
+df %>% group_by(Family_ID) %>% summarise(Age = sum(Age))
+```
+
+
+```{r}
+library(dplyr)
+
+# Assuming 'your_data' is your original data frame with a 'Family_ID' column
+family_counts <- df %>%
+  group_by(Family_ID) %>%
+  filter(Status == "Deceased") %>%
+  summarise(Count = n())%>% 
+  arrange(desc(Count))
+
+# Display the resulting data frame
+print(family_counts)
+```
+
+
+```{r}
+selected_families <- c("Family-1","Family-17","Family-31","Family-32","Family-44","Family-45", "Family-55", 
+                       "Family-104","Family-149","Family-161")
+
+# Select rows where the 'family_id' column matches any of the selected families
+selected_df <- df[df$`Family_ID` %in% selected_families & df$Status == "Deceased",c("Family_ID","Age","ET_status","Status")]
+
+# Print the selected data frame
+print(selected_df)
+```
+
+```{r}
+selected_df$Family_ID <- as.factor(selected_df$Family_ID)
+selected_df$ET_status <- as.factor(selected_df$ET_status)
+selected_df
+```
+
+
+```{r}
+family_ids <- unique(selected_df$Family_ID)
+
+# Create a list of data frames, each corresponding to a unique family ID
+family_dfs <- split(selected_df, selected_df$Family_ID)
+
+# Access the created data frames using the pattern "df_FAMILYID"
+# For example, to access the data frame for "Family-1", use family_dfs$"Family-1"
+df_Family_1 <- family_dfs$"Family-1"
+df_Family_17 <- family_dfs$"Family-17"
+df_Family_31 <- family_dfs$"Family-31"
+df_Family_32 <- family_dfs$"Family-32"
+df_Family_44 <- family_dfs$"Family-44"
+df_Family_45 <- family_dfs$"Family-45"
+df_Family_55 <- family_dfs$"Family-55"
+df_Family_104 <- family_dfs$"Family-104"
+df_Family_149 <- family_dfs$"Family-149"
+df_Family_161 <- family_dfs$"Family-161"
+
+```
+
+
+```{r}
+selected_family_dfs <- list(
+  df_Family_1, df_Family_17, df_Family_31, df_Family_32, df_Family_44,
+  df_Family_45, df_Family_55, df_Family_104, df_Family_149, df_Family_161)
+```
+
+
+```{r}
+# List to store results
+shapiro_results <- list()
+
+# Loop through each family data frame
+for (i in seq_along(selected_family_dfs)) {
+  
+  # Get the current family data frame
+  family_df <- selected_family_dfs[[i]]
+  
+  # Extract the 'Age' column for the current family
+  age_data <- family_df$Age
+  
+  # Perform the Shapiro-Wilk test
+  shapiro_result <- shapiro.test(age_data)
+  
+  # Store the results
+  shapiro_results[[as.character(i)]] <- list(
+    'Family_ID' = as.character(unique(family_df$Family_ID)),
+    'Sample_Size' = length(age_data),
+    'Shapiro_Statistic' = shapiro_result$statistic,
+    'P_Value' = shapiro_result$p.value,
+    'Normal' = shapiro_result$p.value > 0.05  # True if data is normal (p > 0.05)
+  )
+}
+
+# Convert the results to a data frame
+shapiro_results_df <- do.call(rbind.data.frame, shapiro_results)
+
+# Display the results
+print(shapiro_results_df)
+
+
+```
+
+```{r}
+non_normal_family_df <- shapiro_results_df %>% filter(Normal==FALSE)
+normal_family_df <- shapiro_results_df %>% filter(Normal==TRUE)
+```
+
+```{r}
+non_normal_family_df
+```
+
+```{r}
+normal_family_df
+```
+
+
+```{r}
+non_normal_family_dfs <- list(df_Family_1, df_Family_45, df_Family_161)
+
+normal_family_dfs <- list(df_Family_17, df_Family_31, df_Family_32, df_Family_44,
+                          df_Family_55, df_Family_104, df_Family_149)
+```
+
+```{r}
+library(car)  # Load the car package for Levene's test
+
+# List to store Levene's test results
+levene_test_results <- list()
+
+# Loop through each non-normal family data frame
+for (i in seq_along(non_normal_family_dfs)) {
+  
+  # Get the current non-normal family data frame
+  current_family_df <- non_normal_family_dfs[[i]]
+  
+  # Perform Levene's test
+  levene_test_result <- leveneTest(Age ~ ET_status, data = current_family_df,center="mean")
+  
+  # Store the results
+  levene_test_results[[as.character(i)]] <- list(
+    'Family_ID' = as.character(unique(current_family_df$Family_ID)),
+    'Degree of Freedom' = levene_test_result$Df[[1]],
+    'Variance_Test_Statistic' = levene_test_result$`F value`[[1]],
+    'Variance_P_Value' = levene_test_result$`Pr(>F)`[[1]],
+    'Equal_Variance' = levene_test_result$`Pr(>F)`[[1]] > 0.05  # True if variances are considered equal
+  )
+}
+
+# Convert the results to a data frame
+levene_test_results_df <- do.call(rbind.data.frame, levene_test_results)
+
+# Display the results
+print(levene_test_results_df)
+
+```
+
+
+```{r}
+
+# List to store F-test results
+f_test_results <- list()
+
+# Loop through each normal family data frame
+for (i in seq_along(normal_family_dfs)) {
+  
+  # Get the current normal family data frame
+  current_family_df <- normal_family_dfs[[i]]
+  
+  # Perform F-test
+  f_test_result <- var.test(Age ~ ET_status, data = current_family_df)
+  
+  # Store the results
+  f_test_results[[as.character(i)]] <- list(
+    'Family_ID' = as.character(unique(current_family_df$Family_ID)),
+    'Variance_Test_Statistic' = f_test_result$statistic[["F"]],
+    'Num Df' = f_test_result$parameter[["num df"]],
+    'Denom Df' = f_test_result$parameter[["denom df"]],
+    'Variance_P_Value' = f_test_result$p.value,
+    'Equal_Variance' = f_test_result$p.value > 0.05,
+    'Lower CI (%95)' = f_test_result$conf.int[[1]],
+    'Upper CI (%95)' = f_test_result$conf.int[[2]],
+    'Ratio of Variances' = f_test_result$estimate[["ratio of variances"]]
+  )
+}
+
+# Convert the results to a data frame
+f_test_results_df <- do.call(rbind.data.frame, f_test_results)
+
+# Display the results
+print(f_test_results_df)
+
+```
+
+```{r}
+# List to store results
+qq_plot_list <- list()
+
+# Loop through each family data frame
+for (i in seq_along(selected_family_dfs)) {
+  
+  # Get the current family data frame
+  family_df <- selected_family_dfs[[i]]
+  
+  # Extract the 'Age' column for the current family
+  age_data <- family_df$Age
+  
+  # Create Q-Q plot
+  qq_plot <- qqnorm(age_data, main = paste("Q-Q Plot for ", as.character(unique(family_df$Family_ID))))
+  
+  # Add a reference line
+  qqline(age_data, col = 2)
+  
+  # Store the plot
+  qq_plot_list[[as.character(i)]] <- qq_plot
+}
+
+# Display the Q-Q plots
+print(qq_plot_list)
+```
+
+```{r}
+plt_f1 <- ggbetweenstats(
+  data = df_Family_1,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+) + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("Family-1")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 100))+
+  scale_y_continuous(breaks = seq(40, 100, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+plt_f1
+```
+
+```{r}
+library(ggstatsplot)
+library(ggplot2)
+library(ggsignif)
+plt_f2 <- ggbetweenstats(
+  data = df_Family_17,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)
+
+plt_f2 <- plt_f2+ ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 105))+
+  scale_y_continuous(breaks = seq(40, 105, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-17")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f2
+```
+
+
+```{r}
+extract_stats(plt_f1)
+```
+
+
+```{r}
+et_plus_17 <- df_Family_17 %>% filter(ET_status=="Yes")
+et_plus_17$Age
+```
+
+
+```{r}
+et_minus_17 <- df_Family_17 %>% filter(ET_status=="No")
+et_minus_17$Age
+```
+
+```{r}
+t.test(et_plus_17$Age,et_minus_17$Age,var.equal = FALSE)
+```
+
+```{r}
+t.test(et_plus_17$Age,et_minus_17$Age,var.equal = TRUE)
+```
+
+```{r}
+# Example data
+
+# Step 1: Calculate the Mean
+mean_value <- mean(et_minus_17$Age)
+
+# Step 2: Calculate the Squared Differences from the Mean
+squared_diff <- (et_minus_17$Age - mean_value)^2
+
+# Step 3: Calculate the Variance
+variance_value <- mean(squared_diff)
+
+# Display the results
+print(paste("Mean:", mean_value))
+print(paste("Variance:", variance_value))
+
+```
+
+
+```{r}
+# Step 1: Calculate the Mean
+mean_value <- mean(et_plus_17$Age)
+
+# Step 2: Calculate the Squared Differences from the Mean
+squared_diff <- (et_plus_17$Age - mean_value)^2
+
+# Step 3: Calculate the Variance
+variance_value <- mean(squared_diff)
+
+# Display the results
+print(paste("Mean:", mean_value))
+print(paste("Variance:", variance_value))
+```
+
+
+```{r}
+# List to store Levene's test results
+levene_test_results <- list()
+
+# Loop through each non-normal family data frame
+for (i in seq_along(selected_family_dfs)) {
+  
+  # Get the current non-normal family data frame
+  current_family_df <- selected_family_dfs[[i]]
+  
+  # Perform Levene's test
+  levene_test_result <- leveneTest(Age ~ ET_status, data = current_family_df)
+  
+  # Store the results
+  levene_test_results[[as.character(i)]] <- list(
+    'Family_ID' = as.character(unique(current_family_df$Family_ID)),
+    'Degree of Freedom' = levene_test_result$Df[[1]],
+    'Variance_Test_Statistic' = levene_test_result$`F value`[[1]],
+    'Variance_P_Value' = levene_test_result$`Pr(>F)`[[1]],
+    'Equal_Variance' = levene_test_result$`Pr(>F)`[[1]] > 0.05  # True if variances are considered equal
+  )
+}
+
+# Convert the results to a data frame
+levene_test_results_df_all <- do.call(rbind.data.frame, levene_test_results)
+
+# Display the results
+print(levene_test_results_df_all)
+```
+
+```{r}
+plt_f3 <- ggbetweenstats(
+  data = df_Family_31,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-31")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f3
+```
+
+
+```{r}
+plt_f4 <- ggbetweenstats(
+  data = df_Family_32,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-32")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f4
+```
+
+
+```{r}
+plt_f5 <- ggbetweenstats(
+  data = df_Family_44,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    #annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-44")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f5
+```
+
+```{r}
+plt_f6 <- ggbetweenstats(
+  data = df_Family_45,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+) + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("Family-45")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 100))+
+  scale_y_continuous(breaks = seq(40, 100, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+plt_f6
+```
+
+
+```{r}
+plt_f7 <- ggbetweenstats(
+  data = df_Family_55,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    #annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-55")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f7
+```
+
+```{r}
+t.test(Age~ET_status,df_Family_55,var.equal=FALSE)
+```
+
+
+```{r}
+plt_f8 <- ggbetweenstats(
+  data = df_Family_104,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05)
+    #annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-104")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f8
+```
+
+```{r}
+t.test(Age~ET_status,df_Family_104,var.equal=FALSE)
+```
+
+```{r}
+res.ftest <- var.test(Age ~ ET_status, data = df_Family_31)
+res.ftest
+```
+
+
+```{r}
+plt_f9 <- ggbetweenstats(
+  data = df_Family_149,
+  x = ET_status,
+  y = Age,
+  type = "p",
+  var.equal = FALSE,
+  p.adjust.method = "holm",
+  pairwise.display = "all",
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+)+
+
+ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "t.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  coord_cartesian(ylim = c(40, 110))+
+  scale_y_continuous(breaks = seq(40, 110, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))+
+  labs(x="ET Status",y = "Age") +
+  ggtitle("Family-149")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10),
+        plot.caption = element_text(hjust = 0.5,size = 10))
+
+plt_f9
+```
+
+
+```{r}
+plt_f10 <- ggbetweenstats(
+  data = df_Family_161,
+  x = ET_status,
+  y = Age,
+  type = "np",
+  p.adjust.method = "holm",
+  #palette = "nrc_npg", 
+  #package = "ggsci", # ggprism
+  results.subtitle = TRUE,# FALSE if you wanna remove it
+  ggtheme = ggpubr::theme_pubclean(),
+  #ggtheme = ggprism::theme_prism(palette = "colorblind_safe")
+  centrality.point.args = list(size = 6, color = c("darkblue","darkred")),
+  centrality.label.args = list(size = 4, nudge_x = 0.4, segment.linetype = 4,
+    min.segment.length = 0),
+) + 
+  ggsignif::geom_signif(
+    comparisons = list(c("No","Yes")),
+    test        = "wilcox.test",
+    map_signif_level = c("****"=0.0001,"***"=0.001, "**"=0.01, "*"=0.05),
+    annotations = "ns"
+  )+
+  labs(x="",y = "Age") +
+  ggtitle("Family-161")+
+  ggeasy::easy_center_title()+
+  theme(plot.subtitle = element_text(hjust = 0.5,size = 10))+
+  coord_cartesian(ylim = c(40, 120))+
+  scale_y_continuous(breaks = seq(40, 120, by = 20))+
+  scale_color_manual(values = c("#4DBBD5B2","#DC0000B2"))
+  #scale_x_discrete(label = toupper(levels(et_status_df$ET_status)))
+
+plt_f10
+```
+
+```{r}
+normal_family_df$Family_ID
+```
+
+```{r}
+result <- t.test(Age~ET_status,df_Family_149,var.equal=TRUE)
+```
+
+
+```{r}
+result$p.value
+```
+
+```{r}
+result$conf.int[2]
+```
+
+
+```{r}
+# List to store t-test results
+family_t_test_results <- list()
+
+# Loop through each family data frame
+for (i in seq_along(normal_family_dfs)) {
+  
+  # Get the current family data frame
+  current_family_df <- normal_family_dfs[[i]]
+  
+  # Perform t-test
+  family_t_test_result <- t.test(Age ~ ET_status, data = current_family_df, var.equal = FALSE)
+  
+  # Store the results
+  family_t_test_results[[i]] <- list(
+    'Family_ID' = as.character(unique(current_family_df$Family_ID)),
+    'P_Value' = family_t_test_result$p.value,
+    'T_statistic' = family_t_test_result$statistic,
+    'df' = family_t_test_result$parameter,
+    '95_CI_lower' = family_t_test_result$conf.int[1],
+    '95_CI_upper' = family_t_test_result$conf.int[2]
+    
+  )
+}
+
+# Convert the results to a data frame
+t_test_results_df_all <- do.call(rbind.data.frame, family_t_test_results)
+
+# Display the results
+print(t_test_results_df_all)
+
+```
+
+```{r}
+selected_df
+```
+
+```{r}
+dunnettT3result <- dunnettT3Test(Age~ET_status,selected_df)
+dunnettT3result$p.value
+```
+
+```{r}
+dunnettT3result$statistic
+```
+
+```{r}
+library(rstatix)
+
+welch_anova_result <- welch_anova_test(selected_df,Age~ET_status)
+welch_anova_result$p
+```
+
+```{r}
+kruskal.test(selected_df$Age,selected_df$ET_status)
+```
+
+```{r}
+p_value_kruskal <-5.707e-08
+formatted_p_value_kruskal <- format(p_value_kruskal, scientific = FALSE)
+formatted_p_value_kruskal
+```
+
+
+```{r}
+# Assuming 'selected_df' is your dataframe with a column 'Family_ID'
+selected_df$Family_ID <- factor(selected_df$Family_ID, levels = c("Family-1", "Family-17", "Family-31", "Family-32", "Family-44", "Family-45", "Family-55", "Family-104", "Family-149", "Family-161"))
+
+# Check the levels of the factor
+print(levels(selected_df$Family_ID))
+
+```
+
+
+```{r}
+unique(selected_df$Family_ID)
+```
+
+```{r}
+shapiro.test(selected_df$Age)
+```
+
+```{r}
+library(fBasics)
+dagoTest(selected_df$Age)
+```
+
+
+```{r}
+qqnorm(selected_df$Age)
+qqline(selected_df$Age, col = 2)
+```
+
+
+```{r}
+selected_df$ET_status <- as.factor(selected_df$ET_status)
+```
+
+
+```{r}
+normal_selected_families <- c("Family-17","Family-31","Family-32","Family-44","Family-55","Family-104","Family-149")
+
+normal_selected_df <- selected_df[selected_df$`Family_ID` %in% normal_selected_families,c("Family_ID","Age","ET_status")]
+normal_selected_df
+```
+
+
+```{r}
+non_normal_selected_families <- c("Family-1","Family-45","Family-161")
+
+non_normal_selected_df <- selected_df[selected_df$`Family_ID` %in% non_normal_selected_families,c("Family_ID","Age","ET_status")]
+non_normal_selected_df
+```
+
+
+```{r}
+shapiro.test(normal_selected_df$Age)
+```
+
+```{r}
+shapiro.test(non_normal_selected_df$Age)
+```
+
+
+```{r}
+hist(normal_selected_df$Age)
+```
+
+
+```{r}
+qqnorm(normal_selected_df$Age, main = paste("Q-Q Plot for ", "Normal Families"))
+  
+# Add a reference line
+qqline(normal_selected_df$Age, col = 2)
+```
+
+
+
+
+```{r}
+# Create a hypothetical dataset
+library(epitools)
+set.seed(123)
+
+# Create a contingency table
+contingency_table <- table(df$ET_status, df$Status)
+
+# Calculate odds ratio
+odds_ratio <- oddsratio(contingency_table)
+print(odds_ratio)
+
+```
+
+```{r}
+odds_ratio$measure[2,1]
+```
+
+
+```{r}
+leveneTest(Age ~ ET_status, data = selected_df)
+```
+
+```{r}
+shapiro.test(selected_df$Age)
+```
+
+
+```{r}
+hist(selected_df$Age)
+```
+
+
+```{r}
+figure4 <- ggarrange(plt_f1,plt_f2,plt_f3,plt_f4,plt_f5,plt_f6,plt_f7,plt_f8,plt_f9,plt_f10,
+                     labels = c("A","B","C","D","E","F","G","H","I","J"),ncol = 5, nrow = 2,
+                     heights = c(1.3,1.3,1,1,1,1,1,1,1,1))
+```
+
+
+```{r}
+ggsave(filename="figure4_latest.png",height = 15,width = 40,dpi = 300)
+```
+
+```{r}
+ggsave(filename="figure4_latest.tiff",height = 15,width = 40,dpi = 300,,compression = "lzw+p")
+```
+
+```{r}
+# Tables
+library(gtsummary)
+library(flextable)
+
+theme_gtsummary_journal(journal="nejm")
+#theme_gtsummary_compact()
+
+```
+
+```{r}
+table_df <- df
+```
+
+```{r}
+table_df <- table_df %>%
+  mutate(Age_Range = cut(Age, breaks = c(40,50,60,70,80,90,100,110),labels = c("40-50","51-60","61-70","71-80","81-90","91-100",">100"), include.lowest = TRUE))
+
+table_df
+```
+
+
+```{r}
+colnames(table_df) <- c("Family ID", "Age", "Gender","ET Status","PD Status","Clinical Assesment","ET Severity",
+                        "Age of ET Onset","Onset","Status","Age Ranges")
+```
+
+```{r}
+unique(is.na(table_df$Age_Range))
+```
+
+
+```{r}
+tbl_strata_ex1 <-
+  table_df %>% 
+  select(Age,`Age Ranges`,`ET Status`,Status,Gender,`ET Severity`,Onset,`PD Status`,`Clinical Assesment`) %>% 
+  #mutate(grade = paste("ET Status", ET_status)) %>%
+  tbl_strata(
+    strata = `ET Status`,
+    .tbl_fun =
+      ~ .x %>%
+        tbl_summary(by = Status,missing = "no") %>%
+        #add_n(last=TRUE) %>%
+        add_overall(last=TRUE, col_label="**Total**, N = {n}"),
+    .header = "**{strata}**, N = {n}"
+  ) %>% modify_spanning_header(c("stat_1_1","stat_2_1","stat_0_1")~"**ET (-)**",
+                              c("stat_1_2","stat_2_2","stat_0_2")~"**ET (+)**")
+
+tbl_strata_ex1
+```
+
+```{r}
+tbl_strata_ex1 %>% as_flex_table() %>%
+  flextable::save_as_docx(path = "./table.docx")
+```
+
+
+
+
+
